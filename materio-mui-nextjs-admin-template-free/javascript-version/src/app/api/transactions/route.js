@@ -147,7 +147,7 @@ export async function POST(request) {
     }
 
     // 验证必填字段
-    const requiredFields = ['交易时间', '来源', '收支', '类型', '交易对方', '乘后金额', '类别标记1'];
+    const requiredFields = ['交易时间', '收支' , '乘后金额', '类别标记1'];
     const missingFields = requiredFields.filter(field => !newTransaction[field]);
     if (missingFields.length > 0) {
       return NextResponse.json(
