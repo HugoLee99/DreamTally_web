@@ -1,4 +1,5 @@
 // Context Imports
+import { DateProvider } from '@/contexts/DateContext';
 import { VerticalNavProvider } from '@menu/contexts/verticalNavContext'
 import { SettingsProvider } from '@core/contexts/settingsContext'
 import ThemeProvider from '@components/theme'
@@ -21,7 +22,9 @@ const Providers = props => {
     <VerticalNavProvider>
       <SettingsProvider settingsCookie={settingsCookie} mode={mode}>
         <ThemeProvider direction={direction}>
-          {children}
+          <DateProvider>
+            {children} {/* NavbarContent 会作为 children 的一部分渲染 */}
+          </DateProvider>
           <UpgradeToProButton />
         </ThemeProvider>
       </SettingsProvider>

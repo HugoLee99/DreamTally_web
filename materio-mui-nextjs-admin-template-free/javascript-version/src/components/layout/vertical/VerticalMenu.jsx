@@ -59,9 +59,7 @@ const VerticalMenu = ({ scrollMenu }) => {
           <MenuItem href='/transactions' icon={<i className='ri-money-dollar-circle-line' />}>
             交易记录
           </MenuItem>
-          <MenuItem href='/analysis' icon={<i className='ri-bar-chart-2-line' />}>
-            数据分析
-          </MenuItem>
+          
         </MenuSection>
       </Menu>
     </ScrollWrapper>
