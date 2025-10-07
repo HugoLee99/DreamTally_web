@@ -8,7 +8,33 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import OptionMenu from '@core/components/option-menu';
 import CustomAvatar from '@core/components/mui/Avatar';
+import { useDateContext } from '@/contexts/DateContext'; // 导入日期上下文
 
+
+const formatExcelDate = (serial) => {
+  // 检查是否已经是字符串格式
+  if (typeof serial === 'string') {
+    // 尝试解析已有的日期字符串
+    const date = new Date(serial);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+    return null; // 无法解析的字符串
+  }
+
+  // 如果是数字，则按Excel序列号处理
+  if (typeof serial !== 'number' || isNaN(serial)) {
+    return null;
+  }
+
+  // Excel起始日期是1900年1月1日，修正闰年bug
+  const excelEpoch = new Date(1900, 0, 1);
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  
+  // 计算日期（减2是为了修正Excel的1900年闰年错误）
+  const date = new Date(excelEpoch.getTime() + (serial - 2) * millisecondsPerDay);
+  return date;
+};
 const Transactions = () => {
   const [stats, setStats] = useState({
     当月收入: '0',
@@ -16,6 +42,8 @@ const Transactions = () => {
     当月结余: '0',
     累计存款: '0'
   });
+  const { selectedYear, selectedMonth } = useDateContext(); // 获取选中的年月
+
 
   useEffect(() => {
     // 从 API 获取交易数据
@@ -25,16 +53,17 @@ const Transactions = () => {
         if (data.success) {
           const transactions = data.data;
           const today = new Date();
-          const currentMonth = today.getMonth();
-          const currentYear = today.getFullYear();
+          
 
           // 筛选本月数据
           const monthlyData = transactions.filter(item => {
-            const transactionDate = new Date(item['交易时间']);
-            return transactionDate.getMonth() === currentMonth && 
-                   transactionDate.getFullYear() === currentYear;
+            const transactionDate = formatExcelDate(item['交易时间']);
+            // console.log('交易时间:', item['交易时间'], '解析后:', transactionDate.getFullYear(),transactionDate.getMonth());
+            console.log('选中年月:', transactionDate.getMonth(), selectedMonth);
+            return transactionDate.getMonth() == selectedMonth && 
+                   transactionDate.getFullYear() == selectedYear;
           });
-
+          console.log('本月数据:', monthlyData);
           // 计算统计值
           const 当月收入 = monthlyData
             .filter(item => item['收支'] === '收入')

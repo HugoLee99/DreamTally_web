@@ -9,58 +9,131 @@ import Typography from '@mui/material/Button';
 import Button from '@mui/material/Button';
 import { useTheme } from '@mui/material/styles';
 import OptionsMenu from '@core/components/option-menu';
-// import { formatExcelDate } from '@/utils/dateFormatter';
+import { useDateContext } from '@/contexts/DateContext'; // 导入日期上下文
 
 const AppReactApexCharts = dynamic(() => import('@/libs/styles/AppReactApexCharts'));
+
+// 新增：参考 transactions/page.jsx 的日期处理逻辑
+const formatExcelDate = (serial) => {
+  // 检查是否已经是字符串格式
+  if (typeof serial === 'string') {
+    // 尝试解析已有的日期字符串
+    const date = new Date(serial);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+    return null; // 无法解析的字符串
+  }
+
+  // 如果是数字，则按Excel序列号处理
+  if (typeof serial !== 'number' || isNaN(serial)) {
+    return null;
+  }
+
+  // Excel起始日期是1900年1月1日，修正闰年bug
+  const excelEpoch = new Date(1900, 0, 1);
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  
+  // 计算日期（减2是为了修正Excel的1900年闰年错误）
+  const date = new Date(excelEpoch.getTime() + (serial - 2) * millisecondsPerDay);
+  return date;
+};
 
 const WeeklyOverview = () => {
   const theme = useTheme();
   const [series, setSeries] = useState([{ name: '收支金额', data: [0, 0, 0, 0, 0, 0, 0] }]);
   const [categories, setCategories] = useState(['', '', '', '', '', '', '']);
   const [growthRate, setGrowthRate] = useState('0%');
+  const { selectedYear, selectedMonth } = useDateContext(); // 获取选中的年月
 
   useEffect(() => {
     fetch('/api/transactions')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          const transactions = data.data;
-          const today = new Date();
-          const weekData = Array(7).fill(0); // 近7天数据
-          const weekLabels = [];
-
-          // 生成近7天日期标签
-          for (let i = 6; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(today.getDate() - i);
-            weekLabels.push(`${date.getMonth() + 1}/${date.getDate()}`);
-          }
-
-          // 累加每天的收支金额（收入为正，支出为负）
-          transactions.forEach(item => {
-            const transDate = new Date(item['交易时间']);
-            const daysAgo = Math.floor((today - transDate) / (1000 * 60 * 60 * 24));
+          const allTransactions = data.data;
+          
+          // 修正1：使用与 transactions/page.jsx 一致的日期处理逻辑
+          const monthlyTransactions = allTransactions.filter(item => {
+            const transDate = formatExcelDate(item['交易时间']);
+            // 过滤无效日期
+            if (!transDate) return false;
             
-            if (daysAgo >= 0 && daysAgo < 7) {
-              const amount = Number(item['乘后金额'] || 0);
-              weekData[6 - daysAgo] += item['收支'] === '收入' ? amount : -amount;
-            }
+            // 修正2：月份对比逻辑（getMonth()返回0-11，selectedMonth是1-12）
+            return transDate.getFullYear() === selectedYear && 
+                   transDate.getMonth() + 1 === selectedMonth;
           });
 
-          // 计算增长率（与前7天对比）
-          const prevWeekData = weekData.slice(0, 3); // 简化对比：取前3天 vs 后3天
-          const currWeekData = weekData.slice(4, 7);
-          const prevSum = prevWeekData.reduce((a, b) => a + b, 0);
-          const currSum = currWeekData.reduce((a, b) => a + b, 0);
-          const rate = prevSum === 0 ? 100 : Math.round(((currSum - prevSum) / prevSum) * 100);
+          // 修正3：生成选中月份的所有日期（而非近7天）
+          const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+          const monthStart = new Date(selectedYear, selectedMonth - 1, 1);
+          const monthEnd = new Date(selectedYear, selectedMonth - 1, daysInMonth);
+
+          // 按周分组统计（每月最多6周）
+          const weekData = Array(6).fill(0);
+          const weekLabels = [];
+
+          // 计算选中月份的每周标签
+          for (let i = 1; i <= daysInMonth; i += 7) {
+            const endDay = Math.min(i + 6, daysInMonth);
+            weekLabels.push(`${i}-${endDay}日`);
+          }
+
+          // 累加每日收支（收入为正，支出为负）
+          monthlyTransactions.forEach(item => {
+            const transDate = formatExcelDate(item['交易时间']);
+            if (!transDate) return;
+            
+            const day = transDate.getDate();
+            const weekIndex = Math.floor((day - 1) / 7); // 计算属于当月的第几周
+            
+            const amount = Number(item['乘后金额'] || 0);
+            weekData[weekIndex] += item['收支'] === '收入' ? amount : -amount;
+          });
+
+          // 过滤空周
+          const validWeekData = weekData.filter((_, i) => i < weekLabels.length);
+          const validWeekLabels = weekLabels;
+
+          // 计算增长率（与上月同期对比）
+          const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
+          const prevYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
+          
+          const prevMonthTransactions = allTransactions.filter(item => {
+            const transDate = formatExcelDate(item['交易时间']);
+            if (!transDate) return false;
+            return transDate.getFullYear() === prevYear && 
+                   transDate.getMonth() + 1 === prevMonth;
+          });
+
+          // 计算上月每周数据
+          const prevMonthDays = new Date(prevYear, prevMonth, 0).getDate();
+          const prevWeekData = Array(Math.ceil(prevMonthDays / 7)).fill(0);
+          
+          prevMonthTransactions.forEach(item => {
+            const transDate = formatExcelDate(item['交易时间']);
+            if (!transDate) return;
+            
+            const day = transDate.getDate();
+            const weekIndex = Math.floor((day - 1) / 7);
+            
+            const amount = Number(item['乘后金额'] || 0);
+            prevWeekData[weekIndex] += item['收支'] === '收入' ? amount : -amount;
+          });
+
+          // 计算增长率（取最近两周对比）
+          const currentSum = validWeekData.slice(-1)[0] || 0;
+          const prevSum = prevWeekData.slice(-1)[0] || 0;
+          const rate = prevSum === 0 ? 100 : Math.round(((currentSum - prevSum) / prevSum) * 100);
           setGrowthRate(`${rate}%`);
 
-          setSeries([{ name: '收支金额', data: weekData }]);
-          setCategories(weekLabels);
+          setSeries([{ name: '收支金额', data: validWeekData }]);
+          setCategories(validWeekLabels);
         }
       });
-  }, []);
+  }, [selectedYear, selectedMonth]); // 依赖选中的年月
 
+  // 图表配置保持不变...
   const options = {
     chart: { parentHeightOffset: 0, toolbar: { show: false } },
     plotOptions: { bar: { borderRadius: 7, distributed: true, columnWidth: '40%' } },
@@ -96,7 +169,7 @@ const WeeklyOverview = () => {
         <div className='flex items-center mbe-4 gap-4'>
           <Typography variant='h4'>{growthRate}</Typography>
           <Typography>
-            本周收支较上周{growthRate.startsWith('-') ? '下降' : '增长'}{growthRate} 😎
+            本周收支较上月同期{growthRate.startsWith('-') ? '下降' : '增长'}{growthRate} 😎
           </Typography>
         </div>
         <Button fullWidth variant='contained'>详情</Button>

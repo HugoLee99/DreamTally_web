@@ -11,6 +11,30 @@ import OptionMenu from '@core/components/option-menu';
 // import { formatExcelDate } from '@/utils/dateFormatter';
 
 const AppReactApexCharts = dynamic(() => import('@/libs/styles/AppReactApexCharts'));
+const formatExcelDate = (serial) => {
+  // 检查是否已经是字符串格式
+  if (typeof serial === 'string') {
+    // 尝试解析已有的日期字符串
+    const date = new Date(serial);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+    return null; // 无法解析的字符串
+  }
+
+  // 如果是数字，则按Excel序列号处理
+  if (typeof serial !== 'number' || isNaN(serial)) {
+    return null;
+  }
+
+  // Excel起始日期是1900年1月1日，修正闰年bug
+  const excelEpoch = new Date(1900, 0, 1);
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  
+  // 计算日期（减2是为了修正Excel的1900年闰年错误）
+  const date = new Date(excelEpoch.getTime() + (serial - 2) * millisecondsPerDay);
+  return date;
+};
 
 // 分类颜色映射
 const categoryColors = {
@@ -40,7 +64,7 @@ const MonthlySpending = () => {
 
           // 筛选本月支出数据
           const monthlySpending = transactions.filter(item => {
-            const transDate = new Date(item['交易时间']);
+            const transDate = formatExcelDate(item['交易时间']);
             return item['收支'] === '支出' && 
                    transDate.getMonth() === currentMonth && 
                    transDate.getFullYear() === currentYear;
