@@ -87,8 +87,8 @@ const WeeklyOverview = () => {
             const day = transDate.getDate();
             const weekIndex = Math.floor((day - 1) / 7); // 计算属于当月的第几周
             
-            const amount = Number(item['乘后金额'] || 0);
-            weekData[weekIndex] += item['收支'] === '收入' ? amount : -amount;
+            const amount = Number(item['金额'] || 0);
+            weekData[weekIndex] += item['收/支'] === '收入' ? amount : -amount;
           });
 
           // 过滤空周
@@ -117,8 +117,8 @@ const WeeklyOverview = () => {
             const day = transDate.getDate();
             const weekIndex = Math.floor((day - 1) / 7);
             
-            const amount = Number(item['乘后金额'] || 0);
-            prevWeekData[weekIndex] += item['收支'] === '收入' ? amount : -amount;
+            const amount = Number(item['金额'] || 0);
+            prevWeekData[weekIndex] += item['收/支'] === '收入' ? amount : -amount;
           });
 
           // 计算增长率（取最近两周对比）

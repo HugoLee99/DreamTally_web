@@ -8,33 +8,10 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import OptionMenu from '@core/components/option-menu';
 import CustomAvatar from '@core/components/mui/Avatar';
-import { useDateContext } from '@/contexts/DateContext'; // 导入日期上下文
+// 1. 导入日期上下文和格式化工具
+import { useDateContext } from '@/contexts/DateContext';
 
-
-const formatExcelDate = (serial) => {
-  // 检查是否已经是字符串格式
-  if (typeof serial === 'string') {
-    // 尝试解析已有的日期字符串
-    const date = new Date(serial);
-    if (!isNaN(date.getTime())) {
-      return date;
-    }
-    return null; // 无法解析的字符串
-  }
-
-  // 如果是数字，则按Excel序列号处理
-  if (typeof serial !== 'number' || isNaN(serial)) {
-    return null;
-  }
-
-  // Excel起始日期是1900年1月1日，修正闰年bug
-  const excelEpoch = new Date(1900, 0, 1);
-  const millisecondsPerDay = 24 * 60 * 60 * 1000;
-  
-  // 计算日期（减2是为了修正Excel的1900年闰年错误）
-  const date = new Date(excelEpoch.getTime() + (serial - 2) * millisecondsPerDay);
-  return date;
-};
+import { formatExcelDate } from '@/utils/dateUtils';
 const Transactions = () => {
   const [stats, setStats] = useState({
     当月收入: '0',
@@ -42,43 +19,50 @@ const Transactions = () => {
     当月结余: '0',
     累计存款: '0'
   });
-  const { selectedYear, selectedMonth } = useDateContext(); // 获取选中的年月
 
+  // 2. 获取用户选择的年月（从上下文）
+  const { selectedYear, selectedMonth } = useDateContext();
 
   useEffect(() => {
+    // 3. 打印选中年月用于调试
+    console.log('选中年月:', selectedYear, selectedMonth);
+
     // 从 API 获取交易数据
     fetch('/api/transactions')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
           const transactions = data.data;
-          const today = new Date();
-          
 
-          // 筛选本月数据
+          // 4. 筛选用户选择年月的数据（而非当前系统时间）
           const monthlyData = transactions.filter(item => {
-            const transactionDate = formatExcelDate(item['交易时间']);
-            // console.log('交易时间:', item['交易时间'], '解析后:', transactionDate.getFullYear(),transactionDate.getMonth());
-            console.log('选中年月:', transactionDate.getMonth(), selectedMonth);
-            return transactionDate.getMonth() == selectedMonth && 
-                   transactionDate.getFullYear() == selectedYear;
+            // 使用统一的日期处理函数解析（支持Excel序列号和字符串）
+            const transDate = formatExcelDate(item['交易时间']);
+            // 过滤无效日期
+            if (!transDate) return false;
+            
+            // 注意：getMonth() 返回 0-11，需加1匹配 selectedMonth（1-12）
+            return transDate.getFullYear() === selectedYear && 
+                   transDate.getMonth() + 1 === selectedMonth;
           });
-          console.log('本月数据:', monthlyData);
-          // 计算统计值
+
+          console.log('筛选后的数据:', monthlyData); // 调试：查看筛选结果
+
+          // 5. 计算统计值（逻辑不变）
           const 当月收入 = monthlyData
-            .filter(item => item['收支'] === '收入')
+            .filter(item => item['收/支'] === '收入')
             .reduce((sum, item) => sum + Number(item['乘后金额'] || 0), 0);
             
           const 当月支出 = monthlyData
-            .filter(item => item['收支'] === '支出')
+            .filter(item => item['收/支'] === '支出')
             .reduce((sum, item) => sum + Number(item['乘后金额'] || 0), 0);
 
           const 当月结余 = 当月收入 - 当月支出;
           const 累计存款 = transactions
-            .filter(item => item['收支'] === '收入')
+            .filter(item => item['收/支'] === '收入')
             .reduce((sum, item) => sum + Number(item['乘后金额'] || 0), 0) 
             - transactions
-              .filter(item => item['收支'] === '支出')
+              .filter(item => item['收/支'] === '支出')
               .reduce((sum, item) => sum + Number(item['乘后金额'] || 0), 0);
 
           setStats({
@@ -89,7 +73,7 @@ const Transactions = () => {
           });
         }
       });
-  }, []);
+  }, [selectedYear, selectedMonth]); // 6. 依赖选中年月，变化时重新筛选
 
   const data = [
     {
@@ -128,7 +112,7 @@ const Transactions = () => {
             <span className='font-medium text-textPrimary'>
               {stats.当月结余 > 0 ? '正向增长' : '需注意支出'} 😎
             </span>
-            <span className='text-textSecondary'>this month</span>
+            <span className='text-textSecondary'>{selectedYear}年{selectedMonth}月</span> {/* 显示选中的年月 */}
           </p>
         }
       />
