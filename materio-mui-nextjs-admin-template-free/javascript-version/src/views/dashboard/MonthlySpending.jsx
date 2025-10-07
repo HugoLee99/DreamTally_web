@@ -1,4 +1,3 @@
-// src/views/dashboard/MonthlySpending.jsx
 'use client';
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -6,95 +5,147 @@ import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
 import { useTheme } from '@mui/material/styles';
 import OptionMenu from '@core/components/option-menu';
-// import { formatExcelDate } from '@/utils/dateFormatter';
+import { useDateContext } from '@/contexts/DateContext';
+import { formatExcelDate } from '@/utils/dateUtils';
 
-const AppReactApexCharts = dynamic(() => import('@/libs/styles/AppReactApexCharts'));
-const formatExcelDate = (serial) => {
-  // 检查是否已经是字符串格式
-  if (typeof serial === 'string') {
-    // 尝试解析已有的日期字符串
-    const date = new Date(serial);
-    if (!isNaN(date.getTime())) {
-      return date;
-    }
-    return null; // 无法解析的字符串
-  }
-
-  // 如果是数字，则按Excel序列号处理
-  if (typeof serial !== 'number' || isNaN(serial)) {
-    return null;
-  }
-
-  // Excel起始日期是1900年1月1日，修正闰年bug
-  const excelEpoch = new Date(1900, 0, 1);
-  const millisecondsPerDay = 24 * 60 * 60 * 1000;
-  
-  // 计算日期（减2是为了修正Excel的1900年闰年错误）
-  const date = new Date(excelEpoch.getTime() + (serial - 2) * millisecondsPerDay);
-  return date;
-};
+// 确保动态导入正确，添加ssr: false以避免服务端渲染问题
+const AppReactApexCharts = dynamic(() => import('@/libs/styles/AppReactApexCharts'), {
+  ssr: false,
+  loading: () => <CircularProgress size={24} /> // 加载状态
+});
 
 // 分类颜色映射
 const categoryColors = {
-  餐饮: '#EA5455',
-  交通: '#28C76F',
-  购物: '#FF9F43',
-  住房: '#9C27B0',
-  娱乐: '#00CFE8',
-  其他: '#6B7280'
+  "a餐饮": '#FF6B35',      // 温暖橙色系，体现食物活力
+  "b购物": '#4779E4',      // 沉稳蓝色系，传达消费理性
+  "c起居": '#2ECC71',      // 清新绿色系，象征生活舒适
+  "d健康": '#9B59B6',      // 优雅紫色系，代表健康呵护
+  "e学习": '#3498DB',      // 知性蓝色系，体现知识与成长
+  "f娱乐": '#F39C12',      // 明快黄色系，展现娱乐活力
+  "g通勤": '#1ABC9C',      // 舒适青色系，适合交通出行场景
+  "h社交": '#E74C3C',      // 热情红色系，体现社交热情
+  "其他": '#95A5A6'
 };
 
 const MonthlySpending = () => {
   const theme = useTheme();
-  const [series, setSeries] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [colors, setColors] = useState([]);
+  // 1. 初始化状态设置默认值，避免空数组导致图表初始化失败
+  const [series, setSeries] = useState([0]);
+  const [categories, setCategories] = useState(['加载中...']);
+  const [colors, setColors] = useState(['#E5E7EB']);
+  const [isLoading, setIsLoading] = useState(true);
+  const { selectedYear, selectedMonth } = useDateContext();
 
   useEffect(() => {
+    // 重置状态，确保切换年月时重新加载
+    setIsLoading(true);
+    setSeries([0]);
+    setCategories(['加载中...']);
+    setColors(['#E5E7EB']);
+
+    console.log('筛选年月:', selectedYear, selectedMonth);
+
     fetch('/api/transactions')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
           const transactions = data.data;
-          const today = new Date();
-          const currentMonth = today.getMonth();
-          const currentYear = today.getFullYear();
-
-          // 筛选本月支出数据
+          
           const monthlySpending = transactions.filter(item => {
             const transDate = formatExcelDate(item['交易时间']);
-            return item['收支'] === '支出' && 
-                   transDate.getMonth() === currentMonth && 
-                   transDate.getFullYear() === currentYear;
+            if (!transDate) return false;
+            
+            const isMonthMatch = transDate.getMonth() + 1 === selectedMonth;
+            const isYearMatch = transDate.getFullYear() === selectedYear;
+            const isExpense = item['收/支'] === '支出';
+            
+            return isExpense && isMonthMatch && isYearMatch;
           });
 
-          // 按一级分类统计
+          console.log('筛选后的支出数据:', monthlySpending);
+
+          // 2. 处理空数据场景
+          if (monthlySpending.length === 0) {
+            setCategories(['无支出数据']);
+            setSeries([1]); // 至少有一个数据点，确保图表渲染
+            setColors(['#E5E7EB']);
+            setIsLoading(false);
+            return;
+          }
+
+          // 按分类统计
           const categoryMap = {};
           monthlySpending.forEach(item => {
             const category = item['类别标记1'] || '其他';
-            const amount = Number(item['乘后金额'] || 0);
+            const amount = Math.abs(Number(item['乘后金额'] || 0));
             categoryMap[category] = (categoryMap[category] || 0) + amount;
           });
 
-          // 转换为图表所需格式
+          // 转换为图表数据
           const entries = Object.entries(categoryMap);
-          setCategories(entries.map(([name]) => name));
-          setSeries(entries.map(([, value]) => value));
-          setColors(entries.map(([name]) => categoryColors[name] || '#6B7280'));
-        }
-      });
-  }, []);
+          const newCategories = entries.map(([name]) => name);
+          const newSeries = entries.map(([, value]) => value);
+          const newColors = entries.map(([name]) => categoryColors[name] || '#6B7280');
 
+          // 3. 确保三个数组长度一致（关键修复）
+          console.log('图表数据校验:', {
+            categoriesLength: newCategories.length,
+            seriesLength: newSeries.length,
+            colorsLength: newColors.length
+          });
+
+          // 只有当三个数组长度一致时才更新状态
+          if (newCategories.length === newSeries.length && newSeries.length === newColors.length) {
+            setCategories(newCategories);
+            setSeries(newSeries);
+            setColors(newColors);
+          } else {
+            console.error('图表数据长度不匹配，无法渲染');
+            setCategories(['数据错误']);
+            setSeries([1]);
+            setColors(['#EF4444']);
+          }
+        }
+      })
+      .catch(error => {
+        console.error('获取交易数据失败:', error);
+        setCategories(['加载失败']);
+        setSeries([1]);
+        setColors(['#EF4444']);
+      })
+      .finally(() => {
+        setIsLoading(false); // 无论成功失败，都结束加载状态
+      });
+  }, [selectedYear, selectedMonth]);
+
+  // 4. 确保options配置正确引用状态变量
   const options = {
-    chart: { type: 'pie', parentHeightOffset: 0, toolbar: { show: false } },
-    labels: categories,
-    colors: colors,
+    chart: { 
+      type: 'pie', 
+      parentHeightOffset: 0, 
+      toolbar: { show: false },
+      // 添加动画，确保数据更新时重新渲染
+      animations: {
+        enabled: true,
+        easing: 'easeinout'
+      }
+    },
+    labels: categories, // 直接引用状态变量
+    colors: colors,     // 直接引用状态变量
     stroke: { show: false },
     dataLabels: { enabled: false },
-    legend: { show: false },
-    tooltip: { y: { formatter: val => `¥${val.toLocaleString()}` } },
+    legend: { 
+      show: true, // 显示图例，方便调试
+      position: 'bottom' 
+    },
+    tooltip: { 
+      y: { 
+        formatter: val => `¥${val.toLocaleString()}` 
+      } 
+    },
     plotOptions: {
       pie: {
         donut: {
@@ -116,10 +167,23 @@ const MonthlySpending = () => {
 
   return (
     <Card>
-      <CardHeader title='本月支出分类' action={<OptionMenu iconClassName='text-textPrimary' options={['Last 28 Days', 'Last Month', 'Last Year']} />} />
+      <CardHeader 
+        title={`${selectedYear}年${selectedMonth}月支出分类`} 
+        action={<OptionMenu iconClassName='text-textPrimary' options={['Last 28 Days', 'Last Month', 'Last Year']} />} 
+      />
       <CardContent>
-        <div className='flex justify-center'>
-          <AppReactApexCharts type='pie' height={280} width='100%' options={options} series={series} />
+        <div className='flex justify-center items-center min-h-[280px]'>
+          {isLoading ? (
+            <CircularProgress /> // 加载中显示进度条
+          ) : (
+            <AppReactApexCharts 
+              type='pie' 
+              height={280} 
+              width='100%' 
+              options={options} 
+              series={series} // 确保传递最新的series
+            />
+          )}
         </div>
       </CardContent>
     </Card>
@@ -127,3 +191,4 @@ const MonthlySpending = () => {
 };
 
 export default MonthlySpending;
+    

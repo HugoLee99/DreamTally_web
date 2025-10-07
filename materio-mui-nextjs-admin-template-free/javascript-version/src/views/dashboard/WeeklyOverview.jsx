@@ -14,31 +14,8 @@ import { useDateContext } from '@/contexts/DateContext'; // 导入日期上下�
 const AppReactApexCharts = dynamic(() => import('@/libs/styles/AppReactApexCharts'));
 
 // 新增：参考 transactions/page.jsx 的日期处理逻辑
-const formatExcelDate = (serial) => {
-  // 检查是否已经是字符串格式
-  if (typeof serial === 'string') {
-    // 尝试解析已有的日期字符串
-    const date = new Date(serial);
-    if (!isNaN(date.getTime())) {
-      return date;
-    }
-    return null; // 无法解析的字符串
-  }
 
-  // 如果是数字，则按Excel序列号处理
-  if (typeof serial !== 'number' || isNaN(serial)) {
-    return null;
-  }
-
-  // Excel起始日期是1900年1月1日，修正闰年bug
-  const excelEpoch = new Date(1900, 0, 1);
-  const millisecondsPerDay = 24 * 60 * 60 * 1000;
-  
-  // 计算日期（减2是为了修正Excel的1900年闰年错误）
-  const date = new Date(excelEpoch.getTime() + (serial - 2) * millisecondsPerDay);
-  return date;
-};
-
+import { formatExcelDate } from '@/utils/dateUtils';
 const WeeklyOverview = () => {
   const theme = useTheme();
   const [series, setSeries] = useState([{ name: '收支金额', data: [0, 0, 0, 0, 0, 0, 0] }]);
