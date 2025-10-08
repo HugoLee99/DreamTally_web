@@ -37,7 +37,7 @@ const MonthlyEarning = () => {
   useEffect(() => {
     // 重置状态，确保切换年月时重新加载
     setIsLoading(true);
-    setSeries([0]);
+    setSeries([1]);
     setCategories(['加载中...']);
     setColors(['#E5E7EB']);
 
@@ -129,12 +129,19 @@ const MonthlyEarning = () => {
       }
     },
     labels: categories, // 直接引用状态变量
+    label: {
+      style: {
+        colors: theme.palette.text.primary, // 标签文字颜色跟随主题
+      }
+    },
     colors: colors,     // 直接引用状态变量
     stroke: { show: false },
     dataLabels: { enabled: false },
     legend: { 
       show: true, // 显示图例，方便调试
-      position: 'bottom' 
+      position: 'bottom',
+      labels: { colors: theme.palette.text.primary  // 使用主题颜色
+      }
     },
     tooltip: { 
       y: { 
@@ -164,7 +171,7 @@ const MonthlyEarning = () => {
     <Card>
       <CardHeader 
         title={`${selectedYear}年${selectedMonth}月收入分类`} 
-        action={<OptionMenu iconClassName='text-textPrimary' options={['Last 28 Days', 'Last Month', 'Last Year']} />} 
+        
       />
       <CardContent>
         <div className='flex justify-center items-center min-h-[280px]'>
