@@ -22,4 +22,18 @@ export const formatExcelDate = (value) => {
   
   return new Date(excelStart.getTime() + milliseconds);
 };
-    
+
+
+// 新增 isDateInMonth 函数并导出
+export const isDateInMonth = (dateValue, targetYear, targetMonth) => {
+  // 1. 解析日期
+  const date = formatExcelDate(dateValue);
+  if (!date) return false; // 无效日期返回false
+  
+  // 2. 提取年份和月份（注意月份+1）
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  
+  // 3. 对比目标年月
+  return year === targetYear && month === targetMonth;
+};

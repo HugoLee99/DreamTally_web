@@ -1,6 +1,6 @@
 // Third-party Imports
 import 'react-perfect-scrollbar/dist/css/styles.css'
-
+import { DateProvider } from '@/contexts/DateContext';
 // Style Imports
 import '@/app/globals.css'
 
@@ -19,7 +19,9 @@ const RootLayout = ({ children }) => {
 
   return (
     <html id='__next' dir={direction}>
-      <body className='flex is-full min-bs-full flex-auto flex-col'>{children}</body>
+      <body className='flex is-full min-bs-full flex-auto flex-col'>
+        <DateProvider>{children}</DateProvider>
+      </body>
     </html>
   )
 }

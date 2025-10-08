@@ -42,7 +42,7 @@ const MonthlySpending = () => {
   useEffect(() => {
     // 重置状态，确保切换年月时重新加载
     setIsLoading(true);
-    setSeries([0]);
+    setSeries([1]);
     setCategories(['加载中...']);
     setColors(['#E5E7EB']);
 
@@ -105,7 +105,7 @@ const MonthlySpending = () => {
           } else {
             console.error('图表数据长度不匹配，无法渲染');
             setCategories(['数据错误']);
-            setSeries([1]);
+            setSeries([0]);
             setColors(['#EF4444']);
           }
         }
@@ -113,7 +113,7 @@ const MonthlySpending = () => {
       .catch(error => {
         console.error('获取交易数据失败:', error);
         setCategories(['加载失败']);
-        setSeries([1]);
+        setSeries([0]);
         setColors(['#EF4444']);
       })
       .finally(() => {
@@ -139,7 +139,10 @@ const MonthlySpending = () => {
     dataLabels: { enabled: false },
     legend: { 
       show: true, // 显示图例，方便调试
-      position: 'bottom' 
+      position: 'bottom',
+      labels: { colors: theme.palette.text.primary  // 使用主题颜色
+      }
+    
     },
     tooltip: { 
       y: { 
@@ -169,7 +172,7 @@ const MonthlySpending = () => {
     <Card>
       <CardHeader 
         title={`${selectedYear}年${selectedMonth}月支出分类`} 
-        action={<OptionMenu iconClassName='text-textPrimary' options={['Last 28 Days', 'Last Month', 'Last Year']} />} 
+        
       />
       <CardContent>
         <div className='flex justify-center items-center min-h-[280px]'>
