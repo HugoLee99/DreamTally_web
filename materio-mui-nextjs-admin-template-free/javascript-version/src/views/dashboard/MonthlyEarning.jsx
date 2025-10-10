@@ -19,10 +19,13 @@ const AppReactApexCharts = dynamic(() => import('@/libs/styles/AppReactApexChart
 
 // 分类颜色映射
 const categoryColors = {
-  "j主要收入": '#FF6B35',      
-
-  "I其它收入": '#2ECC71',      
-  
+  "工资": '#FF6B35',      
+  "亲朋资助": '#2ECC71',
+  "奖金": '#4779E4',      // 沉稳蓝色系，传达消费理性
+  "副业、兼职": '#9B59B6',      // 优雅紫色系，代表健康呵护
+  "补贴": '#3498DB',      // 知性蓝色系，体现知识与成长
+  "存款利息": '#F39C12',      // 明快黄色系，展现娱乐活力
+  "其他": '#95A5A6'      
 };
 
 const MonthlyEarning = () => {
@@ -74,7 +77,7 @@ const MonthlyEarning = () => {
           // 按分类统计
           const categoryMap = {};
           MonthlyEarning.forEach(item => {
-            const category = item['类别标记1'] || '其他';
+            const category = item['类别标记2'] || '其他';
             const amount = Math.abs(Number(item['乘后金额'] || 0));
             categoryMap[category] = (categoryMap[category] || 0) + amount;
           });
