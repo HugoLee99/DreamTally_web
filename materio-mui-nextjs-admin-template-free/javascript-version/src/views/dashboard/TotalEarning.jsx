@@ -14,24 +14,20 @@ import OptionMenu from '@core/components/option-menu'
 // 来源图标和颜色映射
 const sourceConfig = {
   '支付宝': {
-    color: 'primary',
+    color: 'info',
     imgSrc: '/images/logos/alipay.png'
   },
   '微信': {
     color: 'success',
     imgSrc: '/images/logos/wechat.png'
   },
-  '银行卡': {
-    color: 'info',
-    imgSrc: '/images/logos/bank-card.png'
-  },
-  '现金': {
-    color: 'warning',
-    imgSrc: '/images/logos/cash.png'
+  '银行 APP': {
+    color: 'primary',
+    imgSrc: '/images/logos/bank.png'
   },
   '其他': {
     color: 'secondary',
-    imgSrc: '/images/logos/other.png'
+    imgSrc: '/images/logos/cash.png'
   }
 }
 
@@ -49,7 +45,7 @@ const TotalEarning = () => {
         if (result.success && result.data) {
           // 筛选收入类型并按来源统计
           const sourceStats = result.data
-            .filter(item => item.收支 === '收入')
+            .filter(item => item['收/支'] === '收入')
             .reduce((acc, item) => {
               const source = item.来源 || '其他'
               const amount = parseFloat(item.乘后金额) || 0
