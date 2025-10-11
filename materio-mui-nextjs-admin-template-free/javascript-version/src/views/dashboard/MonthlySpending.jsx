@@ -56,7 +56,7 @@ const MonthlySpending = () => {
     setCategories(['加载中...']);
     setColors(['#E5E7EB']);
 
-    console.log('筛选年月:', selectedYear, selectedMonth);
+ 
 
     fetch('/api/transactions')
       .then(res => res.json())
@@ -100,12 +100,8 @@ const MonthlySpending = () => {
           const newSeries = entries.map(([, value]) => value);
           const newColors = entries.map(([name]) => categoryColors[name] || '#6B7280');
 
-          // 3. 确保三个数组长度一致（关键修复）
-          console.log('图表数据校验:', {
-            categoriesLength: newCategories.length,
-            seriesLength: newSeries.length,
-            colorsLength: newColors.length
-          });
+          
+          
 
           if (newCategories.length === newSeries.length && newSeries.length === newColors.length) {
             setCategories(newCategories);
