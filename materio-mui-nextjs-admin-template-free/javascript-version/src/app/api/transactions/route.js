@@ -43,7 +43,7 @@ async function readExcelFile() {
     
     const fileBuffer = await fs.readFile(EXCEL_FILE_PATH);
     const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0] || '交易记录';
+    const sheetName = workbook.SheetNames[0] || '明细';
     const worksheet = workbook.Sheets[sheetName];
     
     const data = worksheet ? XLSX.utils.sheet_to_json(worksheet) : [];
