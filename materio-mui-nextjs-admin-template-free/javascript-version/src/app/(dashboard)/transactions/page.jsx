@@ -13,6 +13,8 @@ import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import AddIcon from '@mui/icons-material/Add';
 import AddTransactionDialog from '@/components/AddTransactionDialog';
+import { useDateContext } from '@/contexts/DateContext'; // 导入日期上下文
+import { formatExcelDate, isDateInMonth } from '@/utils/dateUtils'; // 导入日期工具函数
 
 const columns = [
   { field: '交易时间', headerName: '交易日期' },
@@ -28,9 +30,29 @@ const columns = [
 
 const TransactionsPage = () => {
   const [rows, setRows] = useState([]);
+  const [filteredRows, setFilteredRows] = useState([]); // 存储筛选后的数据
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // 获取选中的年月（从上下文）
+  const { selectedYear, selectedMonth } = useDateContext()
+  // 1. 首次加载和年月变化时重新请求所有数据
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // 2. 当选中的年月变化时，筛选数据（不重新请求，提高性能）
+  useEffect(() => {
+    if (rows.length === 0) return; // 数据未加载时不执行
+
+    // 筛选符合当前年月的数据
+    const filtered = rows.filter(item => 
+      isDateInMonth(item['交易时间'], selectedYear, selectedMonth)
+    );
+    setFilteredRows(filtered);
+    console.log(`筛选 ${selectedYear}年${selectedMonth}月 数据:`, filtered);
+  }, [selectedYear, selectedMonth, rows]); // 依赖：年月变化或原始数据变化
 
   // 将Excel日期序列号转换为格式化的日期时间字符串
   const formatExcelDate = (serial) => {
@@ -70,11 +92,10 @@ const TransactionsPage = () => {
     return `${year}/${month}/${day} ${hours}:${minutes}`;
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
+  
+// 请求原始数据的函数
   const fetchData = () => {
+    setLoading(true);
     fetch('/api/transactions')
       .then(res => res.json())
       .then(data => {
@@ -87,24 +108,17 @@ const TransactionsPage = () => {
       });
   };
 
+  // 添加交易后重新请求数据（保持不变）
   const handleAddTransaction = async (transactionData) => {
     try {
       const response = await fetch('/api/transactions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(transactionData),
       });
-
-      if (response.ok) {
-        // 重新加载数据
-        fetchData();
-      } else {
-        console.error('添加交易记录失败');
-      }
+      if (response.ok) fetchData(); // 添加成功后刷新
     } catch (error) {
-      console.error('添加交易记录时出错:', error);
+      console.error('添加失败:', error);
     }
   };
 
@@ -112,7 +126,9 @@ const TransactionsPage = () => {
     <Card>
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant='h5'>交易记录</Typography>
+          <Typography variant='h5'>
+            {selectedYear}年{selectedMonth}月 交易记录 {/* 显示当前筛选的年月 */}
+          </Typography>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -122,6 +138,8 @@ const TransactionsPage = () => {
             添加交易记录
           </Button>
         </Box>
+
+        {/* 表格数据使用筛选后的 filteredRows */}
         {loading ? (
           <Typography>正在加载数据...</Typography>
         ) : error ? (
@@ -139,11 +157,10 @@ const TransactionsPage = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((row, idx) => (
+                {filteredRows.map((row, idx) => ( // 这里使用筛选后的 filteredRows
                   <TableRow key={idx}>
                     {columns.map(col => (
                       <TableCell key={col.field} align='center'>
-                        {/* 对交易时间字段进行特殊处理 */}
                         {col.field === '交易时间' 
                           ? formatExcelDate(row[col.field]) 
                           : row[col.field] || ''}

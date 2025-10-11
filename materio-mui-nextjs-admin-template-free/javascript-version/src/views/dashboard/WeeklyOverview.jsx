@@ -115,7 +115,10 @@ const WeeklyOverview = () => {
     chart: { parentHeightOffset: 0, toolbar: { show: false } },
     plotOptions: { bar: { borderRadius: 7, distributed: true, columnWidth: '40%' } },
     stroke: { width: 2, colors: ['var(--mui-palette-background-paper)'] },
-    legend: { show: false },
+    legend: { show: false,
+      labels: {colors: theme.palette.text.primary  // 使用主题颜色
+      }
+    },
     grid: {
       xaxis: { lines: { show: false } },
       strokeDashArray: 7,
@@ -125,7 +128,14 @@ const WeeklyOverview = () => {
     dataLabels: { enabled: false },
     colors: ['var(--mui-palette-primary-main)'],
     states: { hover: { filter: { type: 'none' } }, active: { filter: { type: 'none' } } },
-    xaxis: { categories, tickPlacement: 'on', labels: { show: true }, axisTicks: { show: false }, axisBorder: { show: false } },
+    xaxis: { 
+      categories, 
+      tickPlacement: 'on', 
+      show: true,
+      labels: { 
+      style: { colors: 'var(--mui-palette-text-disabled)', fontSize: theme.typography.body2.fontSizey}
+
+     }, axisTicks: { show: false }, axisBorder: { show: false } },
     yaxis: {
       show: true,
       tickAmount: 4,
@@ -140,7 +150,7 @@ const WeeklyOverview = () => {
 
   return (
     <Card>
-      <CardHeader title='周收支概览' action={<OptionsMenu iconClassName='text-textPrimary' options={['Refresh', 'Update', 'Delete']} />} />
+      <CardHeader title='周收支概览' />
       <CardContent sx={{ '& .apexcharts-xcrosshairs.apexcharts-active': { opacity: 0 } }}>
         <AppReactApexCharts type='bar' height={206} width='100%' series={series} options={options} />
         <div className='flex items-center mbe-4 gap-4'>

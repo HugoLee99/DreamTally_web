@@ -1,5 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
 import dynamic from 'next/dynamic';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
@@ -37,12 +42,17 @@ const MonthlySpending = () => {
   const [categories, setCategories] = useState(['加载中...']);
   const [colors, setColors] = useState(['#E5E7EB']);
   const [isLoading, setIsLoading] = useState(true);
+  // 新增弹窗相关状态
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(null);
+  // 保存所有筛选后的消费记录
+  const [allRecords, setAllRecords] = useState([]);
   const { selectedYear, selectedMonth } = useDateContext();
 
   useEffect(() => {
     // 重置状态，确保切换年月时重新加载
     setIsLoading(true);
-    setSeries([0]);
+    setSeries([1]);
     setCategories(['加载中...']);
     setColors(['#E5E7EB']);
 
@@ -57,20 +67,20 @@ const MonthlySpending = () => {
           const monthlySpending = transactions.filter(item => {
             const transDate = formatExcelDate(item['交易时间']);
             if (!transDate) return false;
-            
             const isMonthMatch = transDate.getMonth() + 1 === selectedMonth;
             const isYearMatch = transDate.getFullYear() === selectedYear;
             const isExpense = item['收/支'] === '支出';
-            
             return isExpense && isMonthMatch && isYearMatch;
           });
 
+          setAllRecords(monthlySpending); // 保存所有筛选后的消费记录
 
+          console.log('筛选后的支出数据:', monthlySpending);
 
           // 2. 处理空数据场景
           if (monthlySpending.length === 0) {
             setCategories(['无支出数据']);
-            setSeries([1]); // 至少有一个数据点，确保图表渲染
+            setSeries([1]);
             setColors(['#E5E7EB']);
             setIsLoading(false);
             return;
@@ -93,7 +103,6 @@ const MonthlySpending = () => {
           
           
 
-          // 只有当三个数组长度一致时才更新状态
           if (newCategories.length === newSeries.length && newSeries.length === newColors.length) {
             setCategories(newCategories);
             setSeries(newSeries);
@@ -101,7 +110,7 @@ const MonthlySpending = () => {
           } else {
             console.error('图表数据长度不匹配，无法渲染');
             setCategories(['数据错误']);
-            setSeries([1]);
+            setSeries([0]);
             setColors(['#EF4444']);
           }
         }
@@ -109,7 +118,7 @@ const MonthlySpending = () => {
       .catch(error => {
         console.error('获取交易数据失败:', error);
         setCategories(['加载失败']);
-        setSeries([1]);
+        setSeries([0]);
         setColors(['#EF4444']);
       })
       .finally(() => {
@@ -123,24 +132,29 @@ const MonthlySpending = () => {
       type: 'pie', 
       parentHeightOffset: 0, 
       toolbar: { show: false },
-      // 添加动画，确保数据更新时重新渲染
       animations: {
         enabled: true,
         easing: 'easeinout'
+      },
+      // 关键：添加点击事件
+      events: {
+        dataPointSelection: (event, chartContext, config) => {
+          setSelectedIndex(config.dataPointIndex);
+          setDialogOpen(true);
+        }
       }
     },
-    labels: categories, // 直接引用状态变量
-    colors: colors,     // 直接引用状态变量
+    labels: categories,
+    colors: colors,
     stroke: { show: false },
     dataLabels: { enabled: false },
     legend: { 
-      show: true, // 显示图例，方便调试
-      position: 'bottom' 
+      show: true,
+      position: 'bottom',
+      labels: { colors: theme.palette.text.primary }
     },
     tooltip: { 
-      y: { 
-        formatter: val => `¥${val.toLocaleString()}` 
-      } 
+      y: { formatter: val => `¥${val.toLocaleString()}` }
     },
     plotOptions: {
       pie: {
@@ -165,22 +179,73 @@ const MonthlySpending = () => {
     <Card>
       <CardHeader 
         title={`${selectedYear}年${selectedMonth}月支出分类`} 
-        action={<OptionMenu iconClassName='text-textPrimary' options={['Last 28 Days', 'Last Month', 'Last Year']} />} 
       />
       <CardContent>
         <div className='flex justify-center items-center min-h-[280px]'>
           {isLoading ? (
-            <CircularProgress /> // 加载中显示进度条
+            <CircularProgress />
           ) : (
             <AppReactApexCharts 
               type='pie' 
               height={280} 
               width='100%' 
               options={options} 
-              series={series} // 确保传递最新的series
+              series={series}
             />
           )}
         </div>
+        {/* 弹窗部分 */}
+        <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>分类详情</DialogTitle>
+          <DialogContent>
+            {selectedIndex !== null && categories[selectedIndex] ? (
+              <>
+                <Typography variant="h6" gutterBottom>
+                  {categories[selectedIndex]}
+                </Typography>
+                {/* 消费记录列表 */}
+                {(() => {
+                  const currentCategory = categories[selectedIndex];
+                  const records = allRecords.filter(item => (item['类别标记1'] || '其他') === currentCategory);
+                  if (records.length === 0) {
+                    return <Typography variant="body2">暂无该分类消费记录</Typography>;
+                  }
+                  return (
+                    <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #eee' }}>时间</th>
+                            <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #eee' }}>数据来源</th>
+                            <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #eee' }}>金额</th>
+                            <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #eee' }}>备注</th>
+                            <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #eee' }}>交易对象</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {records.map((item, idx) => (
+                            <tr key={idx}>
+                              <td style={{ padding: '8px', borderBottom: '1px solid #f5f5f5' }}>{formatExcelDate(item['交易时间'])?.toLocaleDateString() || '-'}</td>
+                              <td style={{ padding: '8px', borderBottom: '1px solid #f5f5f5' }}>{item['来源'] || '-'}</td>
+                              <td style={{ padding: '8px', borderBottom: '1px solid #f5f5f5' }}>¥{Math.abs(Number(item['乘后金额'] || 0)).toLocaleString()}</td>
+                              <td style={{ padding: '8px', borderBottom: '1px solid #f5f5f5' }}>{item['商品']|| '-'}</td>
+                              <td style={{ padding: '8px', borderBottom: '1px solid #f5f5f5' }}>{item['交易对方'] || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
+              </>
+            ) : (
+              <Typography variant="body2">未选中分类</Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDialogOpen(false)}>关闭</Button>
+          </DialogActions>
+        </Dialog>
       </CardContent>
     </Card>
   );
