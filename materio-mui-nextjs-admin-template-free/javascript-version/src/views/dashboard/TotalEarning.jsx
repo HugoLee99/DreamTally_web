@@ -33,7 +33,7 @@ const sourceConfig = {
 
 const TotalEarning = () => {
   const [data, setData] = useState([])
-  const [totalIncome, setTotalIncome] = useState(0)
+  const [totalDeposit, setTotalDeposit] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -43,44 +43,52 @@ const TotalEarning = () => {
         const result = await response.json()
         
         if (result.success && result.data) {
-          // 筛选收入类型并按来源统计
-          const sourceStats = result.data
-            .filter(item => item['收/支'] === '收入')
-            .reduce((acc, item) => {
-              const source = item.来源 || '其他'
-              const amount = parseFloat(item.乘后金额) || 0
-              
-              if (acc[source]) {
-                acc[source] += amount
-              } else {
-                acc[source] = amount
-              }
-              return acc
-            }, {})
+          // 按来源统计收入和支出
+          const incomeStats = {}
+          const expenseStats = {}
+          let totalIncome = 0
+          let totalExpense = 0
+          result.data.forEach(item => {
+            const source = item.来源 || '其他'
+            const amount = parseFloat(item.乘后金额) || 0
+            if (item['收/支'] === '收入') {
+              totalIncome += amount
+              incomeStats[source] = (incomeStats[source] || 0) + amount
+            } else if (item['收/支'] === '支出') {
+              totalExpense += amount
+              expenseStats[source] = (expenseStats[source] || 0) + amount
+            }
+          })
 
-          // 计算总收入
-          const total = Object.values(sourceStats).reduce((sum, val) => sum + val, 0)
-          setTotalIncome(total)
+          // 计算总存款
+          const totalDeposit = totalIncome - totalExpense
+          setTotalDeposit(totalDeposit)
+
+          // 按来源统计存款（收入-支出）
+          const depositStats = {}
+          Object.keys(incomeStats).forEach(source => {
+            depositStats[source] = incomeStats[source] - (expenseStats[source] || 0)
+          })
 
           // 转换为组件所需格式
-          const formattedData = Object.entries(sourceStats)
+          const formattedData = Object.entries(depositStats)
             .map(([source, amount]) => {
               const config = sourceConfig[source] || sourceConfig['其他']
               return {
-                progress: total > 0 ? Math.round((amount / total) * 100) : 0,
+                progress: totalDeposit > 0 ? Math.round((amount / totalDeposit) * 100) : 0,
                 title: source,
                 amount: `¥${amount.toFixed(2)}`,
-                subtitle: '累计收入',
+                subtitle: '累计存款',
                 color: config.color,
                 imgSrc: config.imgSrc
               }
             })
-            .sort((a, b) => b.progress - a.progress) // 按比例降序排列
+            .sort((a, b) => b.progress - a.progress)
 
           setData(formattedData)
         }
       } catch (error) {
-        console.error('获取收入统计数据失败:', error)
+        console.error('获取存款统计数据失败:', error)
       } finally {
         setLoading(false)
       }
@@ -92,7 +100,7 @@ const TotalEarning = () => {
   if (loading) {
     return (
       <Card>
-        <CardHeader title='总收入' />
+        <CardHeader title='总存款' />
         <CardContent>
           <Typography>加载中...</Typography>
         </CardContent>
@@ -103,19 +111,15 @@ const TotalEarning = () => {
   return (
     <Card>
       <CardHeader
-        title='总收入'
+        title='总存款'
         action={<OptionMenu iconClassName='text-textPrimary' options={['Last 28 Days', 'Last Month', 'Last Year']} />}
       ></CardHeader>
       <CardContent className='flex flex-col gap-11 md:mbs-2.5'>
         <div>
           <div className='flex items-center'>
-            <Typography variant='h3'>¥{totalIncome.toFixed(2)}</Typography>
-            <i className='ri-arrow-up-s-line align-bottom text-success'></i>
-            <Typography component='span' color='success.main'>
-              10%
-            </Typography>
+            <Typography variant='h3'>¥{totalDeposit.toFixed(2)}</Typography>
           </div>
-          <Typography>较上月增长 10%</Typography>
+          <Typography>所有收入减去支出后的总存款</Typography>
         </div>
         <div className='flex flex-col gap-6'>
           {data.map((item, index) => (
