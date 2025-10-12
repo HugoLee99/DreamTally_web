@@ -154,14 +154,13 @@ const TotalEarning = () => {
   return (
     <Card>
       <CardHeader
-        title={selectedYear + '年' + selectedMonth + '月存款'}
+        title={selectedYear + '年' + selectedMonth + '月     各平台收支'}
         action={<OptionMenu iconClassName='text-textPrimary' options={['Last 28 Days', 'Last Month', 'Last Year']} />}
       ></CardHeader>
-      <CardContent className='flex flex-col gap-11 md:mbs-2.5'>
+      <CardContent className='flex flex-col gap-11 '>
         <div>
           <div className='flex items-center'>
             <Typography variant='h3'>¥{totalDeposit.toFixed(2)}</Typography>
-            
           </div>
           <Typography>
             {growthPercent >= 0 ? '较上月增长' : '较上月减少'} 

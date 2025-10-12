@@ -41,7 +41,7 @@ const LineChart = () => {
             if (!date) return
             if (date.getFullYear() !== selectedYear) return
             const monthIdx = date.getMonth()
-            const amount = parseFloat(item.乘后金额) || 0
+            const amount = parseFloat(item.金额) || 0
             if (item['收/支'] === '收入') {
               profitArr[monthIdx] += amount
             } else if (item['收/支'] === '支出') {
