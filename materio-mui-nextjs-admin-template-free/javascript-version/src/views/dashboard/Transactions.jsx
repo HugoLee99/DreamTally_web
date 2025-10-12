@@ -51,23 +51,23 @@ const Transactions = () => {
           // 5. 计算统计值（逻辑不变）
           const 当月收入 = monthlyData
             .filter(item => item['收/支'] === '收入')
-            .reduce((sum, item) => sum + Number(item['乘后金额'] || 0), 0);
+            .reduce((sum, item) => sum + Number(item['金额'] || 0), 0);
             
           const 当月支出 = monthlyData
             .filter(item => item['收/支'] === '支出')
-            .reduce((sum, item) => sum + Number(item['乘后金额'] || 0), 0);
+            .reduce((sum, item) => sum + Number(item['金额'] || 0), 0);
 
           const 当月结余 = 当月收入 - 当月支出;
           const 累计存款 = transactions
             .filter(item => item['收/支'] === '收入')
-            .reduce((sum, item) => sum + Number(item['乘后金额'] || 0), 0) 
+            .reduce((sum, item) => sum + Number(item['金额'] || 0), 0) 
             - transactions
               .filter(item => item['收/支'] === '支出')
-              .reduce((sum, item) => sum + Number(item['乘后金额'] || 0), 0);
+              .reduce((sum, item) => sum + Number(item['金额'] || 0), 0);
 
           setStats({
             当月收入: `¥${当月收入.toLocaleString()}`,
-            当月支出: `¥${当月支出.toLocaleString()}`,
+            当月支出: `-¥${当月支出.toLocaleString()}`,
             当月结余: `¥${当月结余.toLocaleString()}`,
             累计存款: `¥${累计存款.toLocaleString()}`
           });

@@ -58,7 +58,7 @@ const DepositWithdraw = () => {
             .filter(item => item['收/支'] === '收入')
             .slice(0, 5)
             .map(item => ({
-              amount: `+¥${parseFloat(item.乘后金额).toFixed(2)}`,
+              amount: `+¥${parseFloat(item.金额).toFixed(2)}`,
               title: item.交易对方 || '未知',
               subtitle: item.类别标记1 || '无分类',
               logo: sourceLogos[item.类别标记1] || sourceLogos['其他']
@@ -68,7 +68,7 @@ const DepositWithdraw = () => {
             .filter(item => item['收/支'] === '支出')
             .slice(0, 5)
             .map(item => ({
-              amount: `-¥${parseFloat(item.乘后金额).toFixed(2)}`,
+              amount: `-¥${parseFloat(item.金额).toFixed(2)}`,
               title: item.交易对方 || '未知',
               subtitle: item.类别标记1 || '无分类',
               logo: sourceLogos[item.类别标记1] || sourceLogos['其他']
