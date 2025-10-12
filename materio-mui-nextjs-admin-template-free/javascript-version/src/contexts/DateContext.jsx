@@ -16,12 +16,8 @@ const DateContext = createContext({
 export const DateProvider = ({ children }) => {
   const today = new Date();
 
-  // 生成 2020-2030 年份选项（数字数组，确保与selectedYear类型一致）
-  const yearOptions = [];
-  for (let year = 2020; year <= 2030; year++) {
-    yearOptions.push(year); // 结果：[2020, 2021, ..., 2030]
-  }
-
+  // 生成 今年到前五年的
+  const yearOptions = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
   // 生成 1-12 月份选项（数字数组，确保与selectedMonth类型一致）
   const monthOptions = Array.from({ length: 12 }, (_, index) => index + 1); // 结果：[1, 2, ..., 12]
 
