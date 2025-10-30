@@ -23,7 +23,7 @@ const columns = [
   { field: '类型', headerName: '交易类型' },
   { field: '交易对方', headerName: '交易对象' },
   { field: '商品', headerName: '商品名称' },
-  { field: '乘后金额', headerName: '金额' },
+  { field: '金额', headerName: '金额' },
   { field: '类别标记1', headerName: '一级分类' },
   { field: '类别标记2', headerName: '二级分类' }
 ];

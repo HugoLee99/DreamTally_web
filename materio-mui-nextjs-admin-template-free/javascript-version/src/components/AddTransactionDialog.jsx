@@ -21,6 +21,20 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { zhCN } from 'date-fns/locale';
 
+// Excel 序列号转换函数
+function dateToExcelSerial(date) {
+  // Excel序列号起点是1900-01-01，JS起点是1970-01-01
+  // Excel序列号 = 天数 + 1（Excel的bug，1900年2月29日不存在，但算一天）
+  const excelEpoch = new Date(1900, 0, 1);
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return ((date - excelEpoch) / msPerDay) + 2;
+}
+
+// 原表字段顺序（请根据你的实际Excel表头调整）
+const EXCEL_FIELDS = [
+  '交易时间', '来源', '收/支', '类型', '交易对方', '商品', '金额', '类别标记1', '类别标记2'
+];
+
 const AddTransactionDialog = ({ open, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     交易时间: new Date(),
@@ -29,7 +43,7 @@ const AddTransactionDialog = ({ open, onClose, onSave }) => {
     类型: '',
     交易对方: '',
     商品: '',
-    乘后金额: '',
+    金额: '',
     类别标记1: '',
     类别标记2: ''
   });
@@ -53,30 +67,40 @@ const AddTransactionDialog = ({ open, onClose, onSave }) => {
 
   const validateForm = () => {
     const newErrors = {};
-    
     if (!formData.来源) newErrors.来源 = '数据来源不能为空';
     if (!formData.收支) newErrors.收支 = '收支类型不能为空';
-    if (!formData.类型) newErrors.类型 = '交易类型不能为空';
     if (!formData.交易对方) newErrors.交易对方 = '交易对象不能为空';
-    if (!formData.乘后金额) newErrors.乘后金额 = '金额不能为空';
-    if (!formData.类别标记1) newErrors.类别标记1 = '一级分类不能为空';
-    
+    if (!formData.金额) newErrors.金额 = '金额不能为空';
+    // 支出时校验一级分类，收入时校验二级分类
+    if (formData.收支 === '支出' && !formData.类别标记1) newErrors.类别标记1 = '支出分类不能为空';
+    if (formData.收支 === '收入' && !formData.类别标记2) newErrors.类别标记2 = '收入分类不能为空';
     // 验证金额是否为数字
-    if (formData.乘后金额 && isNaN(parseFloat(formData.乘后金额))) {
-      newErrors.乘后金额 = '金额必须是数字';
+    if (formData.金额 && isNaN(parseFloat(formData.金额))) {
+      newErrors.金额 = '金额必须是数字';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = () => {
     if (validateForm()) {
-      // 格式化日期时间
-      const formattedData = {
-        ...formData,
-        交易时间: formData.交易时间.toISOString()
-      };
+      // 构造完整字段对象，按表头顺序，缺失字段自动补空
+      const formattedData = {};
+      EXCEL_FIELDS.forEach(field => {
+        if (field === '交易时间') {
+          formattedData[field] = dateToExcelSerial(formData.交易时间);
+        } else if (field === '收/支') {
+          formattedData[field] = formData['收支'] || '';
+        } else if (field === '金额') {
+          let amount = formData['金额'] || '';
+          formattedData[field] = amount;
+        } else {
+          // 自动补空：如果没有该字段则补空字符串
+          formattedData[field] = (formData[field] !== undefined && formData[field] !== null) ? formData[field] : '';
+        }
+      });
+     
+     
       onSave(formattedData);
       handleClose();
     }
@@ -90,13 +114,17 @@ const AddTransactionDialog = ({ open, onClose, onSave }) => {
       类型: '',
       交易对方: '',
       商品: '',
-      乘后金额: '',
+      金额: '',
       类别标记1: '',
       类别标记2: ''
     });
     setErrors({});
     onClose();
   };
+
+  // 新增：控制分类框显示
+  const showFirstCategory = formData['收支'] === '支出';
+  const showSecondCategory = formData['收支'] === '收入';
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
@@ -138,7 +166,7 @@ const AddTransactionDialog = ({ open, onClose, onSave }) => {
                   >
                     <MenuItem value="支付宝">支付宝</MenuItem>
                     <MenuItem value="微信">微信</MenuItem>
-                    <MenuItem value="银行卡">银行卡</MenuItem>
+                    <MenuItem value="银行 APP">银行卡</MenuItem>
                     <MenuItem value="现金">现金</MenuItem>
                     <MenuItem value="其他">其他</MenuItem>
                   </Select>
@@ -156,12 +184,13 @@ const AddTransactionDialog = ({ open, onClose, onSave }) => {
                   >
                     <MenuItem value="收入">收入</MenuItem>
                     <MenuItem value="支出">支出</MenuItem>
+                    <MenuItem value="不计收支">不计收支</MenuItem>
                   </Select>
                 </FormControl>
                 {errors.收支 && <Typography color="error" variant="caption">{errors.收支}</Typography>}
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              {/* <Grid item xs={12} sm={6}>
                 <FormControl fullWidth error={!!errors.类型}>
                   <InputLabel>交易类型</InputLabel>
                   <Select
@@ -169,16 +198,17 @@ const AddTransactionDialog = ({ open, onClose, onSave }) => {
                     onChange={handleChange('类型')}
                     label="交易类型"
                   >
-                    <MenuItem value="转账">转账</MenuItem>
-                    <MenuItem value="消费">消费</MenuItem>
-                    <MenuItem value="充值">充值</MenuItem>
-                    <MenuItem value="提现">提现</MenuItem>
-                    <MenuItem value="理财">理财</MenuItem>
-                    <MenuItem value="其他">其他</MenuItem>
+                    <MenuItem value="餐饮美食">餐饮美食</MenuItem>
+                    <MenuItem value="交通出行">交通出行</MenuItem>
+                    <MenuItem value="商户消费">商户消费</MenuItem>
+                    <MenuItem value="生活服务">生活服务</MenuItem>
+                    <MenuItem value="医疗健康">医疗健康</MenuItem>
+                    <MenuItem value="教育学习">教育学习</MenuItem>
+                    <MenuItem value="休闲娱乐">休闲娱乐</MenuItem>
                   </Select>
                 </FormControl>
                 {errors.类型 && <Typography color="error" variant="caption">{errors.类型}</Typography>}
-              </Grid>
+              </Grid> */}
 
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -194,7 +224,7 @@ const AddTransactionDialog = ({ open, onClose, onSave }) => {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="商品名称"
+                  label="细节描述"
                   value={formData.商品}
                   onChange={handleChange('商品')}
                 />
@@ -205,42 +235,54 @@ const AddTransactionDialog = ({ open, onClose, onSave }) => {
                   fullWidth
                   label="金额"
                   type="number"
-                  value={formData.乘后金额}
-                  onChange={handleChange('乘后金额')}
-                  error={!!errors.乘后金额}
-                  helperText={errors.乘后金额}
+                  value={formData.金额}
+                  onChange={handleChange('金额')}
+                  error={!!errors.金额}
+                  helperText={errors.金额}
                 />
               </Grid>
-
+            {showFirstCategory && (
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth error={!!errors.类别标记1}>
-                  <InputLabel>一级分类</InputLabel>
+                  <InputLabel>支出分类</InputLabel>
                   <Select
                     value={formData.类别标记1}
                     onChange={handleChange('类别标记1')}
-                    label="一级分类"
+                    label="支出分类"
                   >
-                    <MenuItem value="餐饮">餐饮</MenuItem>
-                    <MenuItem value="交通">交通</MenuItem>
-                    <MenuItem value="购物">购物</MenuItem>
-                    <MenuItem value="娱乐">娱乐</MenuItem>
-                    <MenuItem value="医疗">医疗</MenuItem>
-                    <MenuItem value="教育">教育</MenuItem>
-                    <MenuItem value="住房">住房</MenuItem>
-                    <MenuItem value="其他">其他</MenuItem>
+                    <MenuItem value="a餐饮">餐饮 </MenuItem>
+                    <MenuItem value="b购物">购物 </MenuItem>
+                    <MenuItem value="c起居">起居 </MenuItem>
+                    <MenuItem value="d健康">健康 </MenuItem>
+                    <MenuItem value="e学习">学习 </MenuItem>
+                    <MenuItem value="f娱乐">娱乐 </MenuItem>
+                    <MenuItem value="g通勤">通勤 </MenuItem>
+                    <MenuItem value="h社交">社交 </MenuItem>
+                    <MenuItem value="其他">其他  </MenuItem>
                   </Select>
                 </FormControl>
                 {errors.类别标记1 && <Typography color="error" variant="caption">{errors.类别标记1}</Typography>}
-              </Grid>
-
+              </Grid>)}
+            {showSecondCategory && (
               <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="二级分类"
-                  value={formData.类别标记2}
-                  onChange={handleChange('类别标记2')}
-                />
-              </Grid>
+                <FormControl fullWidth error={!!errors.类别标记2}>
+                  <InputLabel>收入分类</InputLabel>
+                  <Select
+                    value={formData.类别标记2}
+                    onChange={handleChange('类别标记2')}
+                    label="收入分类"
+                  >
+                    <MenuItem value="工资">工资</MenuItem>
+                    <MenuItem value="亲朋资助">亲朋资助</MenuItem>
+                    <MenuItem value="奖金">奖金</MenuItem>
+                    <MenuItem value="副业、兼职">副业、兼职</MenuItem>
+                    <MenuItem value="补贴">补贴</MenuItem>
+                    <MenuItem value="存款利息">存款利息</MenuItem>
+                    <MenuItem value="其他">其他</MenuItem>
+                  </Select>
+                </FormControl>
+                {errors.类别标记2 && <Typography color="error" variant="caption">{errors.类别标记2}</Typography>}
+              </Grid>)}
             </Grid>
           </Box>
         </DialogContent>
