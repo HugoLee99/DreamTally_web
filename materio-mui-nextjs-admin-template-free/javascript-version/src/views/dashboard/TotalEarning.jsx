@@ -64,25 +64,22 @@ const TotalEarning = () => {
 
           // 计算本月收入和支出
           let totalIncome = 0
-            let totalExpense = 0
-            const incomeStats = {}
-            const expenseStats = {}
-            thisMonthData.forEach(item => {
-              const source = item.来源 || '其他'
-              console.log('item.金额:', item.金额)
-              console.log('source:', source)
-            
-              const amount = parseFloat(item.金额) || 0
-              if (item['收/支'] === '收入') {
-                totalIncome += amount
-                incomeStats[source] = (incomeStats[source] || 0) + amount
-              } else if (item['收/支'] === '支出') {
-                totalExpense += amount // 支出直接累加为正数
-                expenseStats[source] = (expenseStats[source] || 0) + amount
-              }
-            })
-            const totalDeposit = totalIncome - totalExpense // 存款=收入-支出
-            setTotalDeposit(totalDeposit)
+          let totalExpense = 0
+          const incomeStats = {}
+          const expenseStats = {}
+          thisMonthData.forEach(item => {
+            const source = item.来源 || '其他'
+            const amount = parseFloat(item.金额) || 0
+            if (item['收/支'] === '收入') {
+              totalIncome += amount
+              incomeStats[source] = (incomeStats[source] || 0) + amount
+            } else if (item['收/支'] === '支出') {
+              totalExpense += amount // 支出直接累加为正数
+              expenseStats[source] = (expenseStats[source] || 0) + amount
+            }
+          })
+          const totalDeposit = totalIncome - totalExpense // 存款=收入-支出
+          setTotalDeposit(totalDeposit)
 
           // 计算上月收入和支出
           let lastIncome = 0
@@ -114,12 +111,18 @@ const TotalEarning = () => {
             depositStats[source] = (incomeStats[source] || 0) - (expenseStats[source] || 0);
           });
 
+          // 只统计正数来源作为进度条分母
+          const positiveSources = Object.entries(depositStats).filter(([_, amount]) => amount > 0)
+          const positiveTotal = positiveSources.reduce((sum, [_, amount]) => sum + amount, 0)
+
           // 转换为组件所需格式
           const formattedData = Object.entries(depositStats)
             .map(([source, amount]) => {
               const config = sourceConfig[source] || sourceConfig['其他']
+              // 进度条只显示正数，负数或0不显示
+              const progress = positiveTotal > 0 && amount > 0 ? Math.round((amount / positiveTotal) * 100) : 0;
               return {
-                progress: totalDeposit > 0 ? Math.round((amount / totalDeposit) * 100) : 0,
+                progress,
                 title: source,
                 amount: `¥${amount.toFixed(2)}`,
                 subtitle: '本月收支',
@@ -127,6 +130,7 @@ const TotalEarning = () => {
                 imgSrc: config.imgSrc
               }
             })
+            .filter(item => item.progress > 0) // 只显示有进度的来源
             .sort((a, b) => b.progress - a.progress)
 
           setData(formattedData)
@@ -190,6 +194,7 @@ const TotalEarning = () => {
                     value={item.progress}
                     className='is-20 bs-1'
                     color={item.color}
+                    sx={{ direction: 'ltr' }}
                   />
                 </div>
               </div>
